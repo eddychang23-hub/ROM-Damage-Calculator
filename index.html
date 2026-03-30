@@ -563,7 +563,7 @@
     <input class="build-name-input" id="build-name" type="text" maxlength="24" oninput="saveBuildName()" placeholder="Build name...">
   </div>
 
-  <p class="note">Assumes +15 weapon and both accessories (ReduceLv = 12, contributing +10.8% base pen)</p>
+  <p class="note">Assumes +15 weapon and both accessories</p>
 
   <!-- Attacker Stats -->
   <div class="card">
@@ -993,17 +993,22 @@ function updateAll() {
   chainPhys.style.display = (dmgType === 'mag') ? 'none' : '';
   chainMag.style.display = (dmgType === 'phys') ? 'none' : '';
 
+  function chainVal(mult) {
+    return role === 'defender' ? fmt(1 - mult) : fmt(mult);
+  }
   function chainHTML(penLabel, subtitle, penMult, total) {
     const rv = roleValue(total);
-    return `<div style="margin-bottom: 6px;"><span style="font-size:14px;font-weight:600;color:#e1e4ea;">${penLabel}</span> <span style="font-size:12px;color:#7a8194;">${subtitle}</span></div>` +
+    const lbl = role === 'defender' ? 'Reduc' : 'Dealt';
+    const sub = role === 'defender' ? 'Pen Reduc × Ele Reduc × Race Reduc × Skill Reduc' : subtitle;
+    return `<div style="margin-bottom: 6px;"><span style="font-size:14px;font-weight:600;color:#e1e4ea;">${penLabel}</span> <span style="font-size:12px;color:#7a8194;">${sub}</span></div>` +
       `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:14px;">` +
-      `<span class="chain-box">${fmt(penMult)}</span>` +
+      `<span class="chain-box">${chainVal(penMult)}</span>` +
       `<span class="chain-op">\u00d7</span>` +
-      `<span class="chain-box">${fmt(r.eleR.mult)}</span>` +
+      `<span class="chain-box">${chainVal(r.eleR.mult)}</span>` +
       `<span class="chain-op">\u00d7</span>` +
-      `<span class="chain-box">${fmt(r.raceR.mult)}</span>` +
+      `<span class="chain-box">${chainVal(r.raceR.mult)}</span>` +
       `<span class="chain-op">\u00d7</span>` +
-      `<span class="chain-box">${fmt(r.mSkill)}</span>` +
+      `<span class="chain-box">${chainVal(r.mSkill)}</span>` +
       `<span class="chain-op">=</span>` +
       `<span class="chain-result">${rv.value} ${rv.suffix}</span>` +
       `</div>`;
