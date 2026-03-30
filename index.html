@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ROM GvG / PvP Damage Calculator</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #0f1117;
+    color: #e1e4ea;
+    min-height: 100vh;
+    line-height: 1.5;
+  }
+
+  .page {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 3rem;
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #1e2030;
+  }
+  .header h1 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.02em;
+  }
+  .header h1 span { color: #d4a845; }
+  .header p {
+    font-size: 0.85rem;
+    color: #9ca3af;
+    margin-top: 0.35rem;
+  }
+
+  /* Controls row */
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 1.25rem;
+  }
+
+  /* Build tabs */
+  .build-tabs {
+    display: flex;
+    gap: 4px;
+    background: #161824;
+    border-radius: 10px;
+    padding: 4px;
+  }
+  .build-tab {
+    padding: 7px 16px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: #8b92a0;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .build-tab:hover { color: #a0a8c0; }
+  .build-tab.active {
+    background: #2a2418;
+    color: #d4a845;
+    border: 1px solid #3d351e;
+  }
+  .build-tab .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* Build name input */
+  .build-name-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 1rem;
+  }
+  .build-name-input {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid #2a2d40;
+    color: #e1e4ea;
+    font-size: 15px;
+    font-weight: 600;
+    padding: 4px 2px;
+    width: 220px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .build-name-input:focus { border-color: #d4a845; }
+
+  /* Card */
+  .card {
+    background: #161824;
+    border: 1px solid #1e2030;
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+  }
+
+  /* Section heading */
+  .section-heading {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-heading .spacer { flex: 1; }
+  .copy-btn {
+    font-size: 12px;
+    font-weight: 500;
+    color: #8b92a0;
+    background: #1a1d2e;
+    border: 1px solid #2a2d40;
+    border-radius: 6px;
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    position: relative;
+  }
+  .copy-btn:hover { color: #c0c4d0; border-color: #3a3d50; }
+  .copy-menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    background: #1a1d2e;
+    border: 1px solid #2a2d50;
+    border-radius: 8px;
+    padding: 4px;
+    z-index: 10;
+    min-width: 120px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  }
+  .copy-menu.open { display: block; }
+  .copy-menu-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 6px 10px;
+    font-size: 13px;
+    color: #c0c4d0;
+    background: none;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .copy-menu-item:hover { background: #252840; color: #fff; }
+  .section-heading .icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+  }
+  .atk-heading { color: #ef4444; }
+  .atk-heading .icon { background: rgba(248, 113, 113, 0.12); }
+  .def-heading { color: #60a5fa; }
+  .def-heading .icon { background: rgba(96, 165, 250, 0.12); }
+
+  /* Note */
+  .note {
+    font-size: 0.85rem;
+    color: #7a8194;
+    margin-bottom: 1.25rem;
+    padding-left: 2px;
+  }
+
+  /* Table */
+  .table-wrap {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .table-wrap th {
+    font-size: 12px;
+    font-weight: 600;
+    color: #7a8194;
+    padding: 0 6px 10px 6px;
+    text-align: right;
+    white-space: nowrap;
+  }
+  .table-wrap th:first-child { text-align: left; }
+  .table-wrap td {
+    padding: 10px 6px;
+    font-size: 14px;
+    text-align: right;
+    border-top: 1px solid #1e2030;
+    vertical-align: middle;
+  }
+  .table-wrap td:first-child {
+    text-align: left;
+    color: #8890a4;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .table-wrap input[type=number] {
+    width: 72px;
+    padding: 7px 8px;
+    font-size: 14px;
+    border: 1px solid #2a2d40;
+    border-radius: 6px;
+    background: #0f1117;
+    color: #e1e4ea;
+    text-align: right;
+    transition: border-color 0.15s ease;
+    -moz-appearance: textfield;
+  }
+  .table-wrap input[type=number]::-webkit-inner-spin-button,
+  .table-wrap input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
+  .table-wrap input[type=number]:focus {
+    outline: none;
+    border-color: #d4a845;
+    box-shadow: 0 0 0 2px rgba(212, 168, 69, 0.15);
+  }
+
+  .net { color: #8b92a0; font-size: 14px; }
+
+  /* Metric values */
+  .metric-value { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .good { color: #34d399; }
+  .bad { color: #ef4444; }
+  .neutral { color: #9ca3af; }
+
+  /* Results section heading */
+  .results-heading {
+    font-size: 14px;
+    font-weight: 600;
+    color: #d4a845;
+    margin-bottom: 0.75rem;
+  }
+
+  /* Total card */
+  .total-card {
+    background: linear-gradient(135deg, #1a1d2e 0%, #161824 100%);
+    border: 1px solid #252840;
+    border-radius: 12px;
+    padding: 1.5rem;
+    text-align: center;
+    margin-bottom: 1rem;
+  }
+  .total-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+  .total-col { text-align: center; }
+  .total-label {
+    font-size: 13px;
+    color: #7a8194;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+  .total-sublabel {
+    font-size: 11px;
+    color: #5a6070;
+    margin-top: 0.25rem;
+  }
+  .total-value {
+    font-size: 2rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Role toggle */
+  .role-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 1.5rem;
+  }
+  .role-toggle {
+    display: flex;
+    gap: 4px;
+    background: #161824;
+    border-radius: 10px;
+    padding: 4px;
+  }
+  .role-btn {
+    padding: 8px 20px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: #8b92a0;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .role-btn:hover { color: #a0a8c0; }
+  .role-btn.active-atk {
+    background: rgba(248, 113, 113, 0.15);
+    color: #ef4444;
+    border: 1px solid rgba(248, 113, 113, 0.25);
+  }
+  .role-btn.active-def {
+    background: rgba(96, 165, 250, 0.15);
+    color: #60a5fa;
+    border: 1px solid rgba(96, 165, 250, 0.25);
+  }
+
+  /* Chain */
+  .chain {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    font-size: 14px;
+  }
+  .chain-box {
+    background: #2a2418;
+    border: 1px solid #3d351e;
+    border-radius: 6px;
+    padding: 5px 12px;
+    color: #d4a845;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+  .chain-op { color: #6b7090; font-weight: 600; }
+  .chain-result {
+    font-weight: 600;
+    color: #e1e4ea;
+    padding: 5px 12px;
+    background: #1a2030;
+    border-radius: 6px;
+    border: 1px solid #252840;
+  }
+
+  /* ── Comparison section ── */
+  .compare-heading {
+    font-size: 13px;
+    font-weight: 600;
+    color: #7a8194;
+    margin-bottom: 1rem;
+    margin-top: 0.5rem;
+  }
+
+  .compare-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 1rem;
+  }
+
+  .compare-card {
+    background: #161824;
+    border: 1px solid #1e2030;
+    border-radius: 12px;
+    padding: 1rem;
+    transition: border-color 0.2s;
+    cursor: pointer;
+  }
+  .compare-card:hover { border-color: #2a2d50; }
+  .compare-card.active-card { border-color: #3a3d60; }
+
+  .compare-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.6rem;
+    border-bottom: 1px solid #1e2030;
+  }
+  .compare-card-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .compare-card-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #e1e4ea;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .compare-totals {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 0.75rem;
+  }
+  .compare-total-col { text-align: center; }
+  .compare-total-type {
+    font-size: 10px;
+    color: #5a6070;
+    margin-bottom: 2px;
+  }
+  .compare-total {
+    font-size: 1.25rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+  }
+  .compare-total-label {
+    font-size: 10px;
+    color: #7a8194;
+    text-align: center;
+    margin-top: 2px;
+  }
+
+  .compare-layers {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .compare-layer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+  }
+  .compare-layer-name { color: #8b92a0; }
+  .compare-layer-val { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  /* Winner badge */
+  .winner-badge {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(52, 211, 153, 0.12);
+    color: #34d399;
+    margin-left: auto;
+  }
+
+  /* Damage type toggle */
+  .dmg-type-row {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1rem;
+  }
+  .dmg-type-toggle {
+    display: flex;
+    gap: 4px;
+    background: #161824;
+    border-radius: 10px;
+    padding: 4px;
+  }
+  .dmg-type-btn {
+    padding: 7px 18px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: #8b92a0;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .dmg-type-btn:hover { color: #a0a8c0; }
+  .dmg-type-btn.active-dmg {
+    background: #2a2418;
+    color: #d4a845;
+    border: 1px solid #3d351e;
+  }
+
+  /* Lightbox */
+  .lightbox-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 100;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+  }
+  .lightbox-overlay.open { display: flex; }
+  .lightbox-overlay img {
+    max-width: 90vw;
+    max-height: 90vh;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  }
+
+  /* Footer */
+  .footer {
+    text-align: center;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #1e2030;
+    font-size: 0.8rem;
+    color: #6b7080;
+  }
+  .footer a { color: #9a8a60; text-decoration: none; }
+  .footer a:hover { color: #d4a845; }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    .page { padding: 1.25rem 1rem 2rem; }
+    .header h1 { font-size: 1.3rem; }
+    .controls { gap: 8px; }
+    .table-wrap { font-size: 13px; }
+    .table-wrap input[type=number] { width: 60px; font-size: 13px; padding: 5px 6px; }
+    .table-wrap th { font-size: 11px; }
+    .total-value { font-size: 1.6rem; }
+    .card { padding: 1rem; overflow-x: auto; }
+    .compare-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="lightbox-overlay" id="lightbox" onclick="closeLightbox()">
+  <img id="lightbox-img" src="" alt="Enlarged graph">
+</div>
+<div class="page">
+
+  <div class="header">
+    <h1>ROM <span>GvG / PvP</span> Damage Calculator</h1>
+    <p>Ragnarok Mobile — A damage calculator to help optimize your build</p>
+  </div>
+
+  <div class="card" style="margin-bottom: 1rem;">
+    <div class="section-heading" style="color: #d4a845; cursor: pointer;" onclick="toggleIntro()">
+      <span class="icon" style="background: rgba(212, 168, 69, 0.12);">&#9889;</span>
+      Key Things To Know About ROM PvP / GvG Damage
+      <span class="spacer"></span>
+      <span id="intro-toggle-icon" style="font-size: 12px; color: #8b92a0;">&#9660;</span>
+    </div>
+    <div id="intro-content" style="display: none; margin-top: 0.5rem;">
+      <ul style="padding-left: 1.25rem; font-size: 14px; color: #c0c4d0; display: flex; flex-direction: column; gap: 8px; list-style: disc;">
+        <li>Damage is calculated <strong>multiplicatively</strong> through layers. The most common stats are Pen / Magic Pen, Elemental, Racial, and Skill DMG.</li>
+        <li>Every layer has a cap of <strong>85% damage reduction</strong> and <strong>+120% damage dealt</strong>.</li>
+        <li>Pen / Magic Pen is calculated first. Everything after it multiplies against whatever survives, making them <strong>high priority</strong>.</li>
+        <li><strong>Elemental Reduction</strong> is one of the best investments. Just matching your opponent's elemental damage / reductions brings you to 50% — this is the highest stat for a neutral matchup, and it hits the 85% damage reduction cap faster than any other layer.</li>
+        <li>These stats follow a <strong>non-linear curve</strong>. Returns diminish the further you push toward either extreme. The closer you are to the breakeven point, the more value each percent gives.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="build-tabs" id="build-tabs"></div>
+  </div>
+
+  <div class="build-name-row">
+    <input class="build-name-input" id="build-name" type="text" maxlength="24" oninput="saveBuildName()" placeholder="Build name...">
+  </div>
+
+  <p class="note">Assumes +15 weapon and both accessories (ReduceLv = 12, contributing +10.8% base pen)</p>
+
+  <!-- Attacker Stats -->
+  <div class="card">
+    <div class="section-heading atk-heading">
+      <span class="icon">&#9876;</span> Attacker Stats
+      <span class="spacer"></span>
+      <button class="copy-btn" onclick="toggleCopyMenu(event, 'atk')">Copy To...
+        <div class="copy-menu" id="copy-menu-atk"></div>
+      </button>
+    </div>
+    <table class="table-wrap">
+      <thead>
+        <tr>
+          <th>Layer</th>
+          <th>Stat</th>
+          <th>Pierce</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Physical Pen</td>
+          <td><input type="number" id="ppen" value="0" min="-500" max="500" oninput="onInput()"></td>
+          <td><input type="number" id="ppen-pierce" value="0" min="0" max="100" oninput="onInput()"></td>
+        </tr>
+        <tr>
+          <td>Magic Pen</td>
+          <td><input type="number" id="mpen" value="0" min="-500" max="500" oninput="onInput()"></td>
+          <td><input type="number" id="mpen-pierce" value="0" min="0" max="100" oninput="onInput()"></td>
+        </tr>
+        <tr>
+          <td>Elemental Dmg</td>
+          <td><input type="number" id="ele-atk" value="0" min="-500" max="500" oninput="onInput()"></td>
+          <td><input type="number" id="ele-pierce" value="0" min="0" max="100" oninput="onInput()"></td>
+        </tr>
+        <tr>
+          <td>Racial / Demi-Human Dmg</td>
+          <td><input type="number" id="race-atk" value="0" min="-500" max="500" oninput="onInput()"></td>
+          <td><input type="number" id="race-pierce" value="0" min="0" max="100" oninput="onInput()"></td>
+        </tr>
+        <tr>
+          <td>Skill Dmg</td>
+          <td><input type="number" id="skill-atk" value="0" min="-500" max="500" oninput="onInput()"></td>
+          <td>—</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Defender Stats -->
+  <div class="card">
+    <div class="section-heading def-heading">
+      <span class="icon">&#128737;</span> Defender Stats
+      <span class="spacer"></span>
+      <button class="copy-btn" onclick="toggleCopyMenu(event, 'def')">Copy To...
+        <div class="copy-menu" id="copy-menu-def"></div>
+      </button>
+    </div>
+    <table class="table-wrap">
+      <thead>
+        <tr>
+          <th>Layer</th>
+          <th>Stat</th>
+          <th>Pierce Resist</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Phys Reduc</td>
+          <td><input type="number" id="preduc" value="0" min="-500" max="500" oninput="onInput()"></td>
+          <td><input type="number" id="ppen-resist" value="0" min="0" max="100" oninput="onInput()"></td>
+        </tr>
+        <tr>
+          <td>Magic Reduc</td>
+          <td><input type="number" id="mreduc" value="0" min="-500" max="500" oninput="onInput()"></td>
+          <td><input type="number" id="mpen-resist" value="0" min="0" max="100" oninput="onInput()"></td>
+        </tr>
+        <tr>
+          <td>Ele Reduc</td>
+          <td><input type="number" id="ele-def" value="0" min="-500" max="500" oninput="onInput()"></td>
+          <td><input type="number" id="ele-resist" value="0" min="0" max="100" oninput="onInput()"></td>
+        </tr>
+        <tr>
+          <td>Race Reduc</td>
+          <td><input type="number" id="race-def" value="0" min="-500" max="500" oninput="onInput()"></td>
+          <td><input type="number" id="race-resist" value="0" min="0" max="100" oninput="onInput()"></td>
+        </tr>
+        <tr>
+          <td>Skill Dmg Reduc</td>
+          <td><input type="number" id="skill-def" value="0" min="-500" max="500" oninput="onInput()"></td>
+          <td>—</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Results -->
+  <div class="card">
+    <div class="results-heading">Results — Per Layer</div>
+    <table class="table-wrap">
+      <thead>
+        <tr>
+          <th>Layer</th>
+          <th>Eff. Net</th>
+          <th>Dmg Reduced</th>
+          <th>Dmg Dealt</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Physical Pen</td>
+          <td class="net" id="net-ppen">—</td>
+          <td class="metric-value neutral" id="rd-ppen">—</td>
+          <td class="metric-value neutral" id="r-ppen">—</td>
+        </tr>
+        <tr>
+          <td>Magic Pen</td>
+          <td class="net" id="net-mpen">—</td>
+          <td class="metric-value neutral" id="rd-mpen">—</td>
+          <td class="metric-value neutral" id="r-mpen">—</td>
+        </tr>
+        <tr>
+          <td>Elemental</td>
+          <td class="net" id="net-ele">—</td>
+          <td class="metric-value neutral" id="rd-ele">—</td>
+          <td class="metric-value neutral" id="r-ele">—</td>
+        </tr>
+        <tr>
+          <td>Racial / Demi-Human</td>
+          <td class="net" id="net-race">—</td>
+          <td class="metric-value neutral" id="rd-race">—</td>
+          <td class="metric-value neutral" id="r-race">—</td>
+        </tr>
+        <tr>
+          <td>Skill Dmg</td>
+          <td class="net" id="net-skill">—</td>
+          <td class="metric-value neutral" id="rd-skill">—</td>
+          <td class="metric-value neutral" id="r-skill">—</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Role toggle -->
+  <div class="role-row">
+    <div class="role-toggle">
+      <button class="role-btn active-atk" onclick="setRole('attacker', this)">I am the Attacker</button>
+      <button class="role-btn" onclick="setRole('defender', this)">I am the Defender</button>
+    </div>
+  </div>
+
+  <!-- Damage type toggle -->
+  <div class="dmg-type-row">
+    <div class="dmg-type-toggle">
+      <button class="dmg-type-btn active-dmg" onclick="setDmgType('all', this)">All</button>
+      <button class="dmg-type-btn" onclick="setDmgType('phys', this)">Physical</button>
+      <button class="dmg-type-btn" onclick="setDmgType('mag', this)">Magic</button>
+    </div>
+  </div>
+
+  <!-- Total -->
+  <div class="total-card">
+    <div class="total-grid">
+      <div class="total-col" id="total-col-phys">
+        <div class="total-label" id="total-label-phys">Physical</div>
+        <div class="total-value metric-value" id="r-total-phys">—</div>
+        <div class="total-sublabel" id="total-sub-phys"></div>
+      </div>
+      <div class="total-col" id="total-col-mag">
+        <div class="total-label" id="total-label-mag">Magic</div>
+        <div class="total-value metric-value" id="r-total-mag">—</div>
+        <div class="total-sublabel" id="total-sub-mag"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div id="chain-phys" style="margin-bottom: 1rem;"></div>
+    <div id="chain-mag"></div>
+  </div>
+
+  <!-- Comparison Section -->
+  <div id="compare-section" style="display:none;">
+    <div class="compare-heading">Build Comparison</div>
+    <div class="compare-grid" id="compare-grid"></div>
+  </div>
+
+  <!-- Reference Graphs -->
+  <div class="card" style="margin-top: 1.5rem;">
+    <div class="section-heading" style="color: #d4a845; cursor: pointer;" onclick="toggleRefGraphs()">
+      <span class="icon" style="background: rgba(212, 168, 69, 0.12);">&#128200;</span>
+      Reference Graphs
+      <span class="spacer"></span>
+      <span id="ref-toggle-icon" style="font-size: 12px; color: #8b92a0;">&#9660;</span>
+    </div>
+    <div id="ref-graphs" style="display: none;">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 0.5rem;">
+        <div>
+          <div style="font-size: 12px; color: #8b92a0; margin-bottom: 6px; text-align: center;">Physical Damage Reduction</div>
+          <img src="pvp_dr.png" alt="Physical DR Curve" style="width: 100%; border-radius: 8px; border: 1px solid #1e2030; cursor: pointer;" onclick="openLightbox(this.src)">
+        </div>
+        <div>
+          <div style="font-size: 12px; color: #8b92a0; margin-bottom: 6px; text-align: center;">Magic Damage Reduction</div>
+          <img src="pvp_mdr.png" alt="Magic DR Curve" style="width: 100%; border-radius: 8px; border: 1px solid #1e2030; cursor: pointer;" onclick="openLightbox(this.src)">
+        </div>
+        <div>
+          <div style="font-size: 12px; color: #8b92a0; margin-bottom: 6px; text-align: center;">Elemental Reduction</div>
+          <img src="pvp_ele.png" alt="Elemental Curve" style="width: 100%; border-radius: 8px; border: 1px solid #1e2030; cursor: pointer;" onclick="openLightbox(this.src)">
+        </div>
+        <div>
+          <div style="font-size: 12px; color: #8b92a0; margin-bottom: 6px; text-align: center;">Racial / Skill Reduction</div>
+          <img src="pvp_racial_skill.png" alt="Racial & Skill Curve" style="width: 100%; border-radius: 8px; border: 1px solid #1e2030; cursor: pointer;" onclick="openLightbox(this.src)">
+        </div>
+      </div>
+      <div style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid #1e2030;">
+        <div style="font-size: 13px; font-weight: 600; color: #8b92a0; margin-bottom: 8px;">Sources</div>
+        <ul style="padding-left: 1.25rem; font-size: 13px; color: #9a8a60; display: flex; flex-direction: column; gap: 4px; list-style: disc;">
+          <li><a href="https://romhandbook.com/formulas/commonfun-calcmdamreduc" target="_blank" rel="noopener" style="color: #d4a845; text-decoration: none;">calcMDamReduc</a> — Magic Damage Reduction</li>
+          <li><a href="https://romhandbook.com/formulas/commonfun-calcdamreduc" target="_blank" rel="noopener" style="color: #d4a845; text-decoration: none;">calcDamReduc</a> — Physical Damage Reduction</li>
+          <li><a href="https://romhandbook.com/formulas/commonfun-calcelementparam2" target="_blank" rel="noopener" style="color: #d4a845; text-decoration: none;">calcElementParam2</a> — Elemental Parameter</li>
+          <li><a href="https://romhandbook.com/formulas/commonfun-calcraceparam" target="_blank" rel="noopener" style="color: #d4a845; text-decoration: none;">calcRaceParam</a> — Racial Parameter</li>
+          <li><a href="https://romhandbook.com/formulas/commonfun-modifyrealdam" target="_blank" rel="noopener" style="color: #d4a845; text-decoration: none;">modifyRealDam</a> — Modify Real Damage</li>
+          <li><a href="https://romhandbook.com/formulas/commonfun-calcspikelv" target="_blank" rel="noopener" style="color: #d4a845; text-decoration: none;">calcSpikeLv</a> — Spike Level (Pierce)</li>
+          <li><a href="https://romhandbook.com/formulas/commonfun-calcskillmdamreduc" target="_blank" rel="noopener" style="color: #d4a845; text-decoration: none;">calcSkillMDamReduc</a> — Skill Magic Damage Reduction</li>
+          <li><a href="https://romhandbook.com/formulas/commonfun-calcskilldamreduc" target="_blank" rel="noopener" style="color: #d4a845; text-decoration: none;">calcSkillDamReduc</a> — Skill Damage Reduction</li>
+          <li><a href="https://romhandbook.com/formulas/commonfun-calcbasedamage" target="_blank" rel="noopener" style="color: #d4a845; text-decoration: none;">calcBaseDamage</a> — Base Damage</li>
+          <li><a href="https://romhandbook.com/formulas/commonfun-calcfinaldam" target="_blank" rel="noopener" style="color: #d4a845; text-decoration: none;">calcFinalDam</a> — Final Damage</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Formulas from <a href="https://romhandbook.com/formulas" target="_blank" rel="noopener">romhandbook.com</a>
+  </div>
+
+</div>
+
+<script>
+const REDUCE_LV = 12;
+const REDUCE_BONUS = 0.009 * REDUCE_LV;
+const BUILD_COLORS = ['#d4a845', '#60a5fa', '#e05252'];
+const INPUT_IDS = ['ppen','ppen-pierce','preduc','ppen-resist','mpen','mpen-pierce','mreduc','mpen-resist','ele-atk','ele-pierce','ele-def','ele-resist','race-atk','race-pierce','race-def','race-resist','skill-atk','skill-def'];
+
+let activeBuild = 0;
+let role = 'attacker';
+let dmgType = 'all';
+
+const builds = [
+  { name: 'Build 1', values: {}, results: null },
+  { name: 'Build 2', values: {}, results: null },
+  { name: 'Build 3', values: {}, results: null },
+];
+builds.forEach(b => INPUT_IDS.forEach(id => b.values[id] = 0));
+
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+function applyPierce(pen, pierce, def, resist) {
+  return { effPen: pen * (1 - resist / 100), effDef: def * (1 - pierce / 100) };
+}
+
+function preProcess(effPen, effDef) {
+  return 1 - (1 + REDUCE_BONUS + effPen / 100 - effDef / 100);
+}
+
+function pvpCurve(A, multiplier, pvpReduce) {
+  A = clamp(A, -1, 1);
+  A = Math.floor(A * 1000) / 1000;
+  return A + multiplier * (1 - Math.sin(A * Math.PI / 2)) + pvpReduce;
+}
+
+function calcLayer(pen, pierce, def, resist, multiplier, pvpReduce) {
+  const { effPen, effDef } = applyPierce(pen, pierce, def, resist);
+  let A = preProcess(effPen, effDef);
+  let B = pvpCurve(A, multiplier, pvpReduce);
+  if (B >= 0.85) B = 0.85;
+  return { mult: Math.max(1 - B, 0.15), effPen, effDef };
+}
+
+function skillLayer(pen, def) {
+  let A = (def - pen) / 100;
+  A = clamp(A, -1, 1);
+  A = Math.floor(A * 1000) / 1000;
+  let B = A + 0.4 * (1 - Math.sin(A * Math.PI / 2));
+  return Math.max(1 - B, 0.15);
+}
+
+function computeBuild(vals) {
+  const v = id => vals[id] || 0;
+  const ppenR = calcLayer(v('ppen'), v('ppen-pierce'), v('preduc'), v('ppen-resist'), 0.3, 0.2);
+  const mpenR = calcLayer(v('mpen'), v('mpen-pierce'), v('mreduc'), v('mpen-resist'), 0.4, 0);
+  const eleR = calcLayer(v('ele-atk'), v('ele-pierce'), v('ele-def'), v('ele-resist'), 0.3, 0.2);
+  const raceR = calcLayer(v('race-atk'), v('race-pierce'), v('race-def'), v('race-resist'), 0.4, 0);
+  const mSkill = skillLayer(v('skill-atk'), v('skill-def'));
+  const physTotal = ppenR.mult * eleR.mult * raceR.mult * mSkill;
+  const magTotal = mpenR.mult * eleR.mult * raceR.mult * mSkill;
+  return { ppenR, mpenR, eleR, raceR, mSkill, physTotal, magTotal };
+}
+
+function colorDealt(v) { return v >= 0.8 ? 'good' : v <= 0.3 ? 'bad' : 'neutral'; }
+function colorReduced(v) { return v >= 0.7 ? 'bad' : v <= 0.2 ? 'good' : 'neutral'; }
+function fmt(v) { return (v * 100).toFixed(1) + '%'; }
+
+function setRow(netId, rdId, rId, effNet, dealt) {
+  document.getElementById(netId).textContent = (effNet >= 0 ? '+' : '') + effNet.toFixed(1) + '%';
+  const reduced = 1 - dealt;
+  const rd = document.getElementById(rdId);
+  rd.textContent = fmt(reduced);
+  rd.className = 'metric-value ' + colorReduced(reduced);
+  const r = document.getElementById(rId);
+  r.textContent = fmt(dealt);
+  r.className = 'metric-value ' + colorDealt(dealt);
+}
+
+function saveCurrentInputs() {
+  INPUT_IDS.forEach(id => {
+    builds[activeBuild].values[id] = parseFloat(document.getElementById(id).value) || 0;
+  });
+}
+
+function loadInputs(idx) {
+  const vals = builds[idx].values;
+  INPUT_IDS.forEach(id => {
+    document.getElementById(id).value = vals[id] || 0;
+  });
+  document.getElementById('build-name').value = builds[idx].name;
+}
+
+function saveBuildName() {
+  builds[activeBuild].name = document.getElementById('build-name').value || ('Build ' + (activeBuild + 1));
+  renderBuildTabs();
+  renderComparison();
+}
+
+function setRole(r, btn) {
+  role = r;
+  document.querySelectorAll('.role-btn').forEach(b => { b.className = 'role-btn'; });
+  btn.classList.add(r === 'attacker' ? 'active-atk' : 'active-def');
+  updateAll();
+}
+
+function setDmgType(type, btn) {
+  dmgType = type;
+  document.querySelectorAll('.dmg-type-btn').forEach(b => b.classList.remove('active-dmg'));
+  btn.classList.add('active-dmg');
+  updateAll();
+}
+
+function switchBuild(idx) {
+  saveCurrentInputs();
+  activeBuild = idx;
+  loadInputs(idx);
+  renderBuildTabs();
+  updateAll();
+}
+
+function onInput() {
+  saveCurrentInputs();
+  updateAll();
+}
+
+function renderBuildTabs() {
+  const container = document.getElementById('build-tabs');
+  container.innerHTML = builds.map((b, i) =>
+    `<button class="build-tab ${i === activeBuild ? 'active' : ''}" onclick="switchBuild(${i})">` +
+    `<span class="dot" style="background:${BUILD_COLORS[i]}"></span>${esc(b.name)}</button>`
+  ).join('');
+}
+
+function roleValue(dealt) {
+  const isD = role === 'defender';
+  const v = isD ? 1 - dealt : dealt;
+  return {
+    value: fmt(v),
+    suffix: isD ? 'Damage Reduced' : 'Damage Dealt',
+    colorClass: isD
+      ? (v >= 0.6 ? 'good' : v <= 0.2 ? 'bad' : 'neutral')
+      : (dealt >= 0.6 ? 'good' : dealt <= 0.2 ? 'bad' : 'neutral')
+  };
+}
+
+function updateAll() {
+  builds.forEach(b => { b.results = computeBuild(b.values); });
+
+  const r = builds[activeBuild].results;
+  setRow('net-ppen', 'rd-ppen', 'r-ppen', r.ppenR.effDef - r.ppenR.effPen, r.ppenR.mult);
+  setRow('net-mpen', 'rd-mpen', 'r-mpen', r.mpenR.effDef - r.mpenR.effPen, r.mpenR.mult);
+  setRow('net-ele', 'rd-ele', 'r-ele', r.eleR.effDef - r.eleR.effPen, r.eleR.mult);
+  setRow('net-race', 'rd-race', 'r-race', r.raceR.effDef - r.raceR.effPen, r.raceR.mult);
+  setRow('net-skill', 'rd-skill', 'r-skill', builds[activeBuild].values['skill-def'] - builds[activeBuild].values['skill-atk'], r.mSkill);
+
+  // Total card visibility
+  const physCol = document.getElementById('total-col-phys');
+  const magCol = document.getElementById('total-col-mag');
+  const totalGrid = document.querySelector('.total-grid');
+
+  if (dmgType === 'all') {
+    physCol.style.display = '';
+    magCol.style.display = '';
+    totalGrid.style.gridTemplateColumns = '1fr 1fr';
+  } else if (dmgType === 'phys') {
+    physCol.style.display = '';
+    magCol.style.display = 'none';
+    totalGrid.style.gridTemplateColumns = '1fr';
+  } else {
+    physCol.style.display = 'none';
+    magCol.style.display = '';
+    totalGrid.style.gridTemplateColumns = '1fr';
+  }
+
+  // Physical total
+  const rp = roleValue(r.physTotal);
+  const rtP = document.getElementById('r-total-phys');
+  rtP.textContent = rp.value;
+  rtP.className = 'total-value metric-value ' + rp.colorClass;
+  document.getElementById('total-sub-phys').textContent = rp.suffix;
+
+  // Magic total
+  const rm = roleValue(r.magTotal);
+  const rtM = document.getElementById('r-total-mag');
+  rtM.textContent = rm.value;
+  rtM.className = 'total-value metric-value ' + rm.colorClass;
+  document.getElementById('total-sub-mag').textContent = rm.suffix;
+
+  // Chain visibility
+  const chainPhys = document.getElementById('chain-phys');
+  const chainMag = document.getElementById('chain-mag');
+  chainPhys.style.display = (dmgType === 'mag') ? 'none' : '';
+  chainMag.style.display = (dmgType === 'phys') ? 'none' : '';
+
+  function chainHTML(penLabel, subtitle, penMult, total) {
+    const rv = roleValue(total);
+    return `<div style="margin-bottom: 6px;"><span style="font-size:14px;font-weight:600;color:#e1e4ea;">${penLabel}</span> <span style="font-size:12px;color:#7a8194;">${subtitle}</span></div>` +
+      `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:14px;">` +
+      `<span class="chain-box">${fmt(penMult)}</span>` +
+      `<span class="chain-op">\u00d7</span>` +
+      `<span class="chain-box">${fmt(r.eleR.mult)}</span>` +
+      `<span class="chain-op">\u00d7</span>` +
+      `<span class="chain-box">${fmt(r.raceR.mult)}</span>` +
+      `<span class="chain-op">\u00d7</span>` +
+      `<span class="chain-box">${fmt(r.mSkill)}</span>` +
+      `<span class="chain-op">=</span>` +
+      `<span class="chain-result">${rv.value} ${rv.suffix}</span>` +
+      `</div>`;
+  }
+  document.getElementById('chain-phys').innerHTML = chainHTML('Physical', 'Pen \u00d7 Ele \u00d7 Race \u00d7 Skill', r.ppenR.mult, r.physTotal);
+  document.getElementById('chain-mag').innerHTML = chainHTML('Magic', 'Pen \u00d7 Ele \u00d7 Race \u00d7 Skill', r.mpenR.mult, r.magTotal);
+
+  renderComparison();
+}
+
+function layerDisplay(dealt) {
+  const isD = role === 'defender';
+  const v = isD ? 1 - dealt : dealt;
+  const color = isD
+    ? (v >= 0.6 ? 'good' : v <= 0.2 ? 'bad' : 'neutral')
+    : (dealt >= 0.6 ? 'good' : dealt <= 0.3 ? 'bad' : 'neutral');
+  const suffix = isD ? 'Reduced' : 'Dealt';
+  return { text: fmt(v) + ' ' + suffix, colorClass: color };
+}
+
+function buildHasData(idx) {
+  return INPUT_IDS.some(id => builds[idx].values[id] !== 0);
+}
+
+function renderComparison() {
+  const section = document.getElementById('compare-section');
+  const otherBuildsHaveData = buildHasData(1) || buildHasData(2);
+  section.style.display = otherBuildsHaveData ? '' : 'none';
+
+  const grid = document.getElementById('compare-grid');
+  grid.innerHTML = builds.map((b, i) => {
+    const r = b.results;
+    if (!r) return '';
+    const rp = roleValue(r.physTotal);
+    const rm = roleValue(r.magTotal);
+
+    const layers = [
+      ...(dmgType !== 'mag' ? [{ name: 'P.Pen', mult: r.ppenR.mult }] : []),
+      ...(dmgType !== 'phys' ? [{ name: 'M.Pen', mult: r.mpenR.mult }] : []),
+      { name: 'Elemental', mult: r.eleR.mult },
+      { name: 'Racial', mult: r.raceR.mult },
+      { name: 'Skill', mult: r.mSkill },
+    ];
+
+    const showPhys = dmgType !== 'mag';
+    const showMag = dmgType !== 'phys';
+    const cols = showPhys && showMag ? '1fr 1fr' : '1fr';
+
+    return `<div class="compare-card ${i === activeBuild ? 'active-card' : ''}" onclick="switchBuild(${i})">
+      <div class="compare-card-header">
+        <span class="compare-card-dot" style="background:${BUILD_COLORS[i]}"></span>
+        <span class="compare-card-name">${esc(b.name)}</span>
+      </div>
+      <div class="compare-totals" style="grid-template-columns:${cols}">
+        ${showPhys ? `<div class="compare-total-col">
+          <div class="compare-total-type">Physical</div>
+          <div class="compare-total ${rp.colorClass}">${rp.value}</div>
+          <div class="compare-total-label">${rp.suffix}</div>
+        </div>` : ''}
+        ${showMag ? `<div class="compare-total-col">
+          <div class="compare-total-type">Magic</div>
+          <div class="compare-total ${rm.colorClass}">${rm.value}</div>
+          <div class="compare-total-label">${rm.suffix}</div>
+        </div>` : ''}
+      </div>
+      <div class="compare-layers">
+        ${layers.map(l => {
+          const ld = layerDisplay(l.mult);
+          return `<div class="compare-layer"><span class="compare-layer-name">${l.name}</span><span class="compare-layer-val ${ld.colorClass}">${ld.text}</span></div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// Select all on focus for number inputs
+document.addEventListener('focusin', e => {
+  if (e.target.matches('input[type=number]')) {
+    requestAnimationFrame(() => e.target.select());
+  }
+});
+
+// Copy section stats
+const ATK_IDS = ['ppen','ppen-pierce','mpen','mpen-pierce','ele-atk','ele-pierce','race-atk','race-pierce','skill-atk'];
+const DEF_IDS = ['preduc','ppen-resist','mreduc','mpen-resist','ele-def','ele-resist','race-def','race-resist','skill-def'];
+
+function toggleCopyMenu(e, section) {
+  e.stopPropagation();
+  const menu = document.getElementById('copy-menu-' + section);
+  const wasOpen = menu.classList.contains('open');
+  closeAllMenus();
+  if (wasOpen) return;
+
+  menu.innerHTML = builds
+    .map((b, i) => i === activeBuild ? '' :
+      `<button class="copy-menu-item" onclick="copySection('${section}', ${i})">${esc(b.name)}</button>`)
+    .join('');
+  menu.classList.add('open');
+}
+
+function copySection(section, targetIdx) {
+  saveCurrentInputs();
+  const ids = section === 'atk' ? ATK_IDS : DEF_IDS;
+  ids.forEach(id => { builds[targetIdx].values[id] = builds[activeBuild].values[id]; });
+  closeAllMenus();
+  updateAll();
+}
+
+function closeAllMenus() {
+  document.querySelectorAll('.copy-menu').forEach(m => m.classList.remove('open'));
+}
+
+document.addEventListener('click', closeAllMenus);
+
+function openLightbox(src) {
+  const overlay = document.getElementById('lightbox');
+  document.getElementById('lightbox-img').src = src;
+  overlay.classList.add('open');
+}
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('open');
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeLightbox();
+});
+
+function toggleIntro() {
+  const el = document.getElementById('intro-content');
+  const icon = document.getElementById('intro-toggle-icon');
+  const open = el.style.display === 'none';
+  el.style.display = open ? '' : 'none';
+  icon.innerHTML = open ? '&#9650;' : '&#9660;';
+}
+
+function toggleRefGraphs() {
+  const el = document.getElementById('ref-graphs');
+  const icon = document.getElementById('ref-toggle-icon');
+  const open = el.style.display === 'none';
+  el.style.display = open ? '' : 'none';
+  icon.innerHTML = open ? '&#9650;' : '&#9660;';
+}
+
+// Init
+renderBuildTabs();
+loadInputs(0);
+updateAll();
+</script>
+</body>
+</html>
