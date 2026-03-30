@@ -824,8 +824,9 @@ function applyPierce(pen, pierce, def, resist) {
   return { effPen: pen * (1 - resist / 100), effDef: def * (1 - pierce / 100) };
 }
 
-function preProcess(effPen, effDef) {
-  return 1 - (1 + REDUCE_BONUS + effPen / 100 - effDef / 100);
+function preProcess(effPen, effDef, useReduceBonus = true) {
+  const bonus = useReduceBonus ? REDUCE_BONUS : 0;
+  return 1 - (1 + bonus + effPen / 100 - effDef / 100);
 }
 
 function pvpCurve(A, multiplier, pvpReduce) {
@@ -834,9 +835,9 @@ function pvpCurve(A, multiplier, pvpReduce) {
   return A + multiplier * (1 - Math.sin(A * Math.PI / 2)) + pvpReduce;
 }
 
-function calcLayer(pen, pierce, def, resist, multiplier, pvpReduce) {
+function calcLayer(pen, pierce, def, resist, multiplier, pvpReduce, useReduceBonus = true) {
   const { effPen, effDef } = applyPierce(pen, pierce, def, resist);
-  let A = preProcess(effPen, effDef);
+  let A = preProcess(effPen, effDef, useReduceBonus);
   let B = pvpCurve(A, multiplier, pvpReduce);
   if (B >= 0.85) B = 0.85;
   return { mult: Math.max(1 - B, 0.15), effPen, effDef };
@@ -854,8 +855,8 @@ function computeBuild(vals) {
   const v = id => vals[id] || 0;
   const ppenR = calcLayer(v('ppen'), v('ppen-pierce'), v('preduc'), v('ppen-resist'), 0.3, 0.2);
   const mpenR = calcLayer(v('mpen'), v('mpen-pierce'), v('mreduc'), v('mpen-resist'), 0.4, 0);
-  const eleR = calcLayer(v('ele-atk'), v('ele-pierce'), v('ele-def'), v('ele-resist'), 0.3, 0.2);
-  const raceR = calcLayer(v('race-atk'), v('race-pierce'), v('race-def'), v('race-resist'), 0.4, 0);
+  const eleR = calcLayer(v('ele-atk'), v('ele-pierce'), v('ele-def'), v('ele-resist'), 0.3, 0.2, false);
+  const raceR = calcLayer(v('race-atk'), v('race-pierce'), v('race-def'), v('race-resist'), 0.4, 0, false);
   const mSkill = skillLayer(v('skill-atk'), v('skill-def'));
   const physTotal = ppenR.mult * eleR.mult * raceR.mult * mSkill;
   const magTotal = mpenR.mult * eleR.mult * raceR.mult * mSkill;
