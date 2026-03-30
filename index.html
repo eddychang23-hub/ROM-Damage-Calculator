@@ -90,8 +90,27 @@
     display: flex;
     align-items: center;
     gap: 8px;
+    margin-bottom: 0.5rem;
+  }
+  .history-btns {
+    display: flex;
+    gap: 6px;
     margin-bottom: 1rem;
   }
+  .hist-btn {
+    background: #1e2030;
+    border: 1px solid #2a2d40;
+    color: #8b92a0;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .hist-btn:hover:not(:disabled) { background: #252840; color: #e1e4ea; }
+  .hist-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .hist-btn.reset { color: #e05252; border-color: #3a2020; }
+  .hist-btn.reset:hover:not(:disabled) { background: #2a1a1a; color: #ff6b6b; }
   .build-name-input {
     background: transparent;
     border: none;
@@ -562,6 +581,11 @@
   <div class="build-name-row">
     <input class="build-name-input" id="build-name" type="text" maxlength="24" oninput="saveBuildName()" placeholder="Build name...">
   </div>
+  <div class="history-btns">
+    <button class="hist-btn" id="btn-undo" onclick="histUndo()" disabled title="Undo (Ctrl+Z)">↩ Undo</button>
+    <button class="hist-btn" id="btn-redo" onclick="histRedo()" disabled title="Redo (Ctrl+Y)">↪ Redo</button>
+    <button class="hist-btn reset" onclick="resetBuild()" title="Reset all fields to 0">✕ Reset</button>
+  </div>
 
   <p class="note">Assumes +15 weapon and both accessories</p>
 
@@ -812,11 +836,58 @@ let role = 'attacker';
 let dmgType = 'all';
 
 const builds = [
-  { name: 'Build 1', values: {}, results: null },
-  { name: 'Build 2', values: {}, results: null },
-  { name: 'Build 3', values: {}, results: null },
+  { name: 'Build 1', values: {}, results: null, undoStack: [], redoStack: [] },
+  { name: 'Build 2', values: {}, results: null, undoStack: [], redoStack: [] },
+  { name: 'Build 3', values: {}, results: null, undoStack: [], redoStack: [] },
 ];
 builds.forEach(b => INPUT_IDS.forEach(id => b.values[id] = 0));
+
+function snapshotValues() {
+  return Object.assign({}, builds[activeBuild].values);
+}
+
+function pushHistory(snapshot) {
+  const b = builds[activeBuild];
+  b.undoStack.push(snapshot);
+  if (b.undoStack.length > 50) b.undoStack.shift();
+  b.redoStack = [];
+  updateHistoryButtons();
+}
+
+function updateHistoryButtons() {
+  const b = builds[activeBuild];
+  document.getElementById('btn-undo').disabled = b.undoStack.length === 0;
+  document.getElementById('btn-redo').disabled = b.redoStack.length === 0;
+}
+
+function histUndo() {
+  const b = builds[activeBuild];
+  if (!b.undoStack.length) return;
+  b.redoStack.push(snapshotValues());
+  const prev = b.undoStack.pop();
+  b.values = prev;
+  loadInputs(activeBuild);
+  updateHistoryButtons();
+  updateAll();
+}
+
+function histRedo() {
+  const b = builds[activeBuild];
+  if (!b.redoStack.length) return;
+  b.undoStack.push(snapshotValues());
+  const next = b.redoStack.pop();
+  b.values = next;
+  loadInputs(activeBuild);
+  updateHistoryButtons();
+  updateAll();
+}
+
+function resetBuild() {
+  pushHistory(snapshotValues());
+  INPUT_IDS.forEach(id => { builds[activeBuild].values[id] = 0; });
+  loadInputs(activeBuild);
+  updateAll();
+}
 
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
@@ -917,10 +988,21 @@ function switchBuild(idx) {
   activeBuild = idx;
   loadInputs(idx);
   renderBuildTabs();
+  updateHistoryButtons();
   updateAll();
 }
 
+let _pendingSnapshot = null;
+
+function onFocusCapture() {
+  _pendingSnapshot = snapshotValues();
+}
+
 function onInput() {
+  if (_pendingSnapshot !== null) {
+    pushHistory(_pendingSnapshot);
+    _pendingSnapshot = null;
+  }
   saveCurrentInputs();
   updateAll();
 }
@@ -1094,6 +1176,7 @@ function esc(s) {
 // Select all on focus for number inputs
 document.addEventListener('focusin', e => {
   if (e.target.matches('input[type=number]')) {
+    onFocusCapture();
     requestAnimationFrame(() => e.target.select());
   }
 });
@@ -1140,6 +1223,8 @@ function closeLightbox() {
 }
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeLightbox();
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); histUndo(); }
+  if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); histRedo(); }
 });
 
 function toggleIntro() {
