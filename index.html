@@ -92,10 +92,13 @@
     gap: 8px;
     margin-bottom: 0.5rem;
   }
-  .history-btns {
+  .card-footer-btns {
     display: flex;
+    justify-content: flex-end;
     gap: 6px;
-    margin-bottom: 1rem;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid rgba(255,255,255,0.06);
   }
   .hist-btn {
     background: #1e2030;
@@ -581,12 +584,6 @@
   <div class="build-name-row">
     <input class="build-name-input" id="build-name" type="text" maxlength="24" oninput="saveBuildName()" placeholder="Build name...">
   </div>
-  <div class="history-btns">
-    <button class="hist-btn" id="btn-undo" onclick="histUndo()" disabled title="Undo (Ctrl+Z)">↩ Undo</button>
-    <button class="hist-btn" id="btn-redo" onclick="histRedo()" disabled title="Redo (Ctrl+Y)">↪ Redo</button>
-    <button class="hist-btn reset" onclick="resetBuild()" title="Reset all fields to 0">✕ Reset</button>
-  </div>
-
   <p class="note">Assumes +15 weapon and both accessories</p>
 
   <!-- Attacker Stats -->
@@ -634,6 +631,11 @@
         </tr>
       </tbody>
     </table>
+    <div class="card-footer-btns">
+      <button class="hist-btn" id="btn-undo" onclick="histUndo()" disabled title="Undo (Ctrl+Z)">↩ Undo</button>
+      <button class="hist-btn" id="btn-redo" onclick="histRedo()" disabled title="Redo (Ctrl+Y)">↪ Redo</button>
+      <button class="hist-btn reset" onclick="resetBuild()" title="Reset all fields to 0">✕ Reset</button>
+    </div>
   </div>
 
   <!-- Defender Stats -->
@@ -681,6 +683,11 @@
         </tr>
       </tbody>
     </table>
+    <div class="card-footer-btns">
+      <button class="hist-btn" id="btn-undo-def" onclick="histUndo()" disabled title="Undo (Ctrl+Z)">↩ Undo</button>
+      <button class="hist-btn" id="btn-redo-def" onclick="histRedo()" disabled title="Redo (Ctrl+Y)">↪ Redo</button>
+      <button class="hist-btn reset" onclick="resetBuild()" title="Reset all fields to 0">✕ Reset</button>
+    </div>
   </div>
 
   <!-- Results -->
@@ -856,8 +863,12 @@ function pushHistory(snapshot) {
 
 function updateHistoryButtons() {
   const b = builds[activeBuild];
-  document.getElementById('btn-undo').disabled = b.undoStack.length === 0;
-  document.getElementById('btn-redo').disabled = b.redoStack.length === 0;
+  const noUndo = b.undoStack.length === 0;
+  const noRedo = b.redoStack.length === 0;
+  document.getElementById('btn-undo').disabled = noUndo;
+  document.getElementById('btn-redo').disabled = noRedo;
+  document.getElementById('btn-undo-def').disabled = noUndo;
+  document.getElementById('btn-redo-def').disabled = noRedo;
 }
 
 function histUndo() {
